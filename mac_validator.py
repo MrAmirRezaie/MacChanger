@@ -226,7 +226,7 @@ def test_validator():
     print("-" * 60)
     for mac, expected_unicast, description in test_cases:
         result = MacValidator.validate(mac)
-        status = "✓" if result.is_valid else "✗"
+        status = "[OK]" if result.is_valid else "[FAIL]"
         print(f"{status} {description}")
         print(f"   MAC: {mac}")
         print(f"   Valid: {result.is_valid}, Unicast: {result.is_unicast}")

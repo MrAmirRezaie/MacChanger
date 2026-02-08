@@ -37,10 +37,10 @@ class InstallationValidator:
         print(f"Required Python version: {required_str}")
 
         if current >= required:
-            print("✓ Python version is compatible\n")
+            print("[OK] Python version is compatible\n")
             return True
         else:
-            print(f"✗ Python version is too old")
+            print(f"[FAIL] Python version is too old")
             print(f"  Please upgrade to Python 3.7 or later\n")
             return False
 
@@ -61,10 +61,10 @@ class InstallationValidator:
 
         supported = ['Windows', 'Linux', 'Darwin']
         if os_name in supported:
-            print(f"✓ {os_name} is supported\n")
+            print(f"[OK] {os_name} is supported\n")
             return True
         else:
-            print(f"✗ {os_name} is not currently supported")
+            print(f"[FAIL] {os_name} is not currently supported")
             print(f"  Supported platforms: {', '.join(supported)}\n")
             return False
 
@@ -87,13 +87,13 @@ class InstallationValidator:
 
         for cmd in required:
             if InstallationValidator._command_exists(cmd):
-                print(f"  ✓ {cmd}")
+                print(f"  [OK] {cmd}")
             else:
-                print(f"  ✗ {cmd} - NOT FOUND")
+                print(f"  [FAIL] {cmd} - NOT FOUND")
                 all_found = False
 
         if not all_found:
-            print(f"\n⚠ Some required commands are missing.")
+            print("\n[WARN] Some required commands are missing.")
             print(f"  Installation instructions:")
 
             if os_name == 'Windows':
@@ -130,12 +130,12 @@ class InstallationValidator:
         for module in stdlib_modules:
             try:
                 __import__(module)
-                print(f"  ✓ {module}")
+                print(f"  [OK] {module}")
             except ImportError:
-                print(f"  ✗ {module}")
+                print(f"  [FAIL] {module}")
                 all_found = False
 
-        print("\n✓ No external dependencies required!")
+        print("\n[OK] No external dependencies required!")
         print("  The tool uses only Python standard library (Python 3.7+)\n")
         return all_found
 
@@ -152,20 +152,20 @@ class InstallationValidator:
             try:
                 import ctypes
                 is_admin = ctypes.windll.shell.IsUserAnAdmin()
-                status = "✓" if is_admin else "ℹ"
+                status = "[OK]" if is_admin else "[INFO]"
                 print(f"\n{status} Administrator privileges: {'Present' if is_admin else 'Not Present'}")
                 print("  Note: Admin privileges are REQUIRED for actual MAC spoofing")
                 print("  Validation and generation commands work without admin access\n")
                 return True
             except Exception as e:
-                print(f"\n⚠ Could not check admin status: {e}")
+                print(f"\n[WARN] Could not check admin status: {e}")
                 print("  Note: Admin privileges are required for MAC spoofing\n")
                 return True
         else:
             # Linux/macOS
             uid = subprocess.run(['id', '-u'], capture_output=True, text=True).stdout.strip()
             is_root = uid == '0'
-            status = "✓" if is_root else "ℹ"
+            status = "[OK]" if is_root else "[INFO]"
             print(f"\n{status} Root/sudo privileges: {'Present' if is_root else 'Not Present'}")
             print("  Note: Root/sudo privileges are REQUIRED for actual MAC spoofing")
             print("  Validation and generation commands work without root access\n")
@@ -202,11 +202,11 @@ class InstallationValidator:
 
         try:
             import unittest
-            print("\n✓ unittest is available")
+            print("\n[OK] unittest is available")
             print("  Run tests with: python tests.py\n")
             return True
         except ImportError:
-            print("\n✗ unittest is not available")
+            print("\n[FAIL] unittest is not available")
             print("  This is unusual - unittest is part of Python stdlib\n")
             return False
 
@@ -214,10 +214,10 @@ class InstallationValidator:
     def run_all_checks():
         """Run all installation checks."""
         print("\n")
-        print("╔" + "=" * 68 + "╗")
-        print("║" + " " * 15 + "MAC ADDRESS SPOOFER - INSTALLATION CHECK" + " " * 12 + "║")
-        print("║" + " " * 18 + "Developer: MrAmirRezaie" + " " * 25 + "║")
-        print("╚" + "=" * 68 + "╝")
+        print("+" + "=" * 68 + "+")
+        print("|" + " " * 15 + "MAC ADDRESS SPOOFER - INSTALLATION CHECK" + " " * 12 + "|")
+        print("|" + " " * 18 + "Developer: MrAmirRezaie" + " " * 25 + "|")
+        print("+" + "=" * 68 + "+")
         print()
 
         results = {
@@ -235,7 +235,7 @@ class InstallationValidator:
         print()
 
         for check, result in results.items():
-            status = "✓ PASS" if result else "✗ FAIL"
+            status = "[OK] PASS" if result else "[FAIL] FAIL"
             print(f"{status}: {check}")
 
         critical_passed = all([
@@ -253,7 +253,7 @@ class InstallationValidator:
         print()
         print("=" * 70)
         if critical_passed:
-            print("✓ INSTALLATION CHECK PASSED")
+            print("[OK] INSTALLATION CHECK PASSED")
             print()
             print("The tool is ready to use!")
             print()
@@ -265,12 +265,12 @@ class InstallationValidator:
             print()
 
             if not nice_to_have_passed:
-                print("⚠ Some optional components are missing, but the tool will still work.")
+                print("[WARN] Some optional components are missing, but the tool will still work.")
 
             print("=" * 70)
             return 0
         else:
-            print("✗ INSTALLATION CHECK FAILED")
+            print("[FAIL] INSTALLATION CHECK FAILED")
             print()
             print("Please fix the issues above and try again.")
             print("=" * 70)
@@ -286,7 +286,7 @@ def main():
         print("\n\nInstallation check cancelled by user.")
         sys.exit(1)
     except Exception as e:
-        print(f"\n✗ Unexpected error during installation check: {e}")
+        print(f"\n[FAIL] Unexpected error during installation check: {e}")
         sys.exit(1)
 
 
