@@ -13,12 +13,36 @@ from dataclasses import dataclass
 
 @dataclass
 class NetworkInterface:
-    """Represents a network interface."""
+    """Represents a network interface with extended information."""
     name: str
     mac_address: str
     status: str
     driver: Optional[str] = None
     description: Optional[str] = None
+    ip_address: Optional[str] = None
+    netmask: Optional[str] = None
+    ipv6_address: Optional[str] = None
+    mtu: Optional[int] = None
+    speed: Optional[str] = None  # e.g., "1000 Mb/s"
+    interface_type: Optional[str] = None  # e.g., "Ethernet", "Wireless"
+    vendor: Optional[str] = None  # OUI vendor name
+
+    def to_dict(self) -> Dict:
+        """Convert to dictionary."""
+        return {
+            'name': self.name,
+            'mac_address': self.mac_address,
+            'status': self.status,
+            'ip_address': self.ip_address,
+            'netmask': self.netmask,
+            'ipv6_address': self.ipv6_address,
+            'mtu': self.mtu,
+            'speed': self.speed,
+            'interface_type': self.interface_type,
+            'driver': self.driver,
+            'description': self.description,
+            'vendor': self.vendor
+        }
 
 
 class PlatformHandler(ABC):
@@ -51,6 +75,37 @@ class PlatformHandler(ABC):
     def spoof_driver_info(self, interface: str, driver_name: str) -> bool:
         """Spoof driver information."""
         pass
+
+    def get_ip_address(self, interface: str) -> Optional[str]:
+        """Get IP address of an interface. Override in subclass for platform-specific implementation."""
+        return None
+
+    def get_ipv6_address(self, interface: str) -> Optional[str]:
+        """Get IPv6 address of an interface. Override in subclass for platform-specific implementation."""
+        return None
+
+    def get_netmask(self, interface: str) -> Optional[str]:
+        """Get netmask of an interface. Override in subclass for platform-specific implementation."""
+        return None
+
+    def get_mtu(self, interface: str) -> Optional[int]:
+        """Get MTU of an interface. Override in subclass for platform-specific implementation."""
+        return None
+
+    def get_interface_type(self, interface: str) -> Optional[str]:
+        """Get type of interface (Ethernet, Wireless, etc.)."""
+        return None
+
+    def get_interface_details(self, interface: str) -> Dict[str, Optional[str]]:
+        """Get detailed information about an interface."""
+        return {
+            'ip_address': self.get_ip_address(interface),
+            'ipv6_address': self.get_ipv6_address(interface),
+            'netmask': self.get_netmask(interface),
+            'mtu': self.get_mtu(interface),
+            'type': self.get_interface_type(interface),
+            'driver': self.get_driver_name(interface)
+        }
 
     def run_command(
         self, command: str, admin: bool = False

@@ -9,6 +9,10 @@ import json
 from mac_spoofer import MacAddressSpoofer
 from mac_validator import MacValidator
 from platform_handlers import get_platform_handler
+from config_manager import ConfigManager
+from mac_history import MacHistory
+from scheduler import Scheduler, ScheduleFrequency
+from interface_filter import InterfaceFilter
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -192,6 +196,245 @@ def rollback(args) -> int:
     return 0 if result['success'] else 1
 
 
+def manage_profiles(args) -> int:
+    """Manage MAC address profiles."""
+    print("\n" + "=" * 70)
+    print("PROFILE MANAGEMENT")
+    print("=" * 70)
+
+    config_mgr = ConfigManager()
+
+    if args.profile_action == "list":
+        print("\nAvailable Profiles:")
+        profiles = config_mgr.list_profiles()
+        if not profiles:
+            print("  No profiles found.")
+        else:
+            for p in profiles:
+                print(f"\n  {p['name']}")
+                if p['description']:
+                    print(f"    Description: {p['description']}")
+                print(f"    Interfaces: {p['interface_count']}")
+                print(f"    Created: {p['created_at']}")
+        return 0
+
+    elif args.profile_action == "create":
+        if not args.name:
+            print("Profile name is required")
+            return 1
+        profile = config_mgr.create_profile(args.name, args.description or "")
+        if profile:
+            print(f"✓ Profile created: {args.name}")
+            return 0
+        else:
+            print(f"✗ Failed to create profile: {args.name}")
+            return 1
+
+    elif args.profile_action == "delete":
+        if not args.name:
+            print("Profile name is required")
+            return 1
+        if config_mgr.delete_profile(args.name):
+            print(f"✓ Profile deleted: {args.name}")
+            return 0
+        else:
+            print(f"✗ Failed to delete profile: {args.name}")
+            return 1
+
+    elif args.profile_action == "show":
+        if not args.name:
+            print("Profile name is required")
+            return 1
+        profile = config_mgr.get_profile(args.name)
+        if not profile:
+            print(f"Profile '{args.name}' not found")
+            return 1
+        print(f"\nProfile: {profile.name}")
+        print(f"Description: {profile.description}")
+        print(f"Interfaces: {len(profile.interfaces)}")
+        for iface, mac in profile.interfaces.items():
+            print(f"  - {iface}: {mac}")
+        return 0
+
+    return 0
+
+
+def manage_mac_history(args) -> int:
+    """Manage MAC address history."""
+    print("\n" + "=" * 70)
+    print("MAC ADDRESS HISTORY")
+    print("=" * 70)
+
+    history_mgr = MacHistory()
+
+    if args.history_action == "list":
+        interface = args.interface if hasattr(args, 'interface') and args.interface else None
+        entries = history_mgr.list_entries(interface=interface, limit=20)
+        if not entries:
+            print("\nNo history entries found.")
+        else:
+            print(f"\nLast 20 entries:")
+            for entry in entries:
+                print(f"\n  {entry['timestamp']}")
+                print(f"    Interface: {entry['interface']}")
+                print(f"    MAC: {entry['mac_address']}")
+                print(f"    Action: {entry['action']} ({entry['status']})")
+                if entry['notes']:
+                    print(f"    Notes: {entry['notes']}")
+        return 0
+
+    elif args.history_action == "clear":
+        interface = args.interface if hasattr(args, 'interface') and args.interface else None
+        cleared = history_mgr.clear_history(interface)
+        print(f"✓ Cleared {cleared} history entries")
+        return 0
+
+    elif args.history_action == "stats":
+        stats = history_mgr.get_statistics()
+        print("\nMAC History Statistics:")
+        for key, value in stats.items():
+            print(f"  {key}: {value}")
+        return 0
+
+    return 0
+
+
+def manage_scheduler(args) -> int:
+    """Manage task scheduling."""
+    print("\n" + "=" * 70)
+    print("TASK SCHEDULER")
+    print("=" * 70)
+
+    scheduler = Scheduler()
+
+    if args.scheduler_action == "list":
+        print("\nScheduled Tasks:")
+        tasks = scheduler.list_tasks()
+        if not tasks:
+            print("  No tasks scheduled.")
+        else:
+            for task in tasks:
+                status = "✓" if task['enabled'] else "✗"
+                print(f"\n  {status} {task['name']}")
+                print(f"     Interface: {task['interface']}")
+                print(f"     Action: {task['action']}")
+                print(f"     Frequency: {task['frequency']}")
+                print(f"     Next run: {task['next_run']}")
+        return 0
+
+    elif args.scheduler_action == "create":
+        if not all([args.name, args.interface, args.action, args.frequency]):
+            print("name, interface, action, and frequency are required")
+            return 1
+
+        try:
+            freq = ScheduleFrequency(args.frequency)
+        except ValueError:
+            print(f"Invalid frequency: {args.frequency}")
+            return 1
+
+        task = scheduler.create_task(
+            args.name,
+            args.interface,
+            args.action,
+            freq,
+            description=args.description or ""
+        )
+
+        if task:
+            print(f"✓ Task created: {args.name}")
+            return 0
+        else:
+            print(f"✗ Failed to create task")
+            return 1
+
+    elif args.scheduler_action == "delete":
+        if not args.name:
+            print("Task name is required")
+            return 1
+
+        if scheduler.delete_task(args.name):
+            print(f"✓ Task deleted: {args.name}")
+            return 0
+        else:
+            print(f"✗ Failed to delete task")
+            return 1
+
+    elif args.scheduler_action == "enable":
+        if not args.name:
+            print("Task name is required")
+            return 1
+
+        if scheduler.enable_task(args.name):
+            print(f"✓ Task enabled: {args.name}")
+            return 0
+        else:
+            print(f"✗ Failed to enable task")
+            return 1
+
+    elif args.scheduler_action == "disable":
+        if not args.name:
+            print("Task name is required")
+            return 1
+
+        if scheduler.disable_task(args.name):
+            print(f"✓ Task disabled: {args.name}")
+            return 0
+        else:
+            print(f"✗ Failed to disable task")
+            return 1
+
+    return 0
+
+
+def filter_interfaces(args) -> int:
+    """Filter and list network interfaces with advanced options."""
+    print("\n" + "=" * 70)
+    print("NETWORK INTERFACE SEARCH")
+    print("=" * 70)
+
+    spoofer = MacAddressSpoofer()
+    interfaces = spoofer.get_available_interfaces()
+
+    # Convert dict list to NetworkInterface objects
+    from platform_handlers import NetworkInterface
+    net_interfaces = [
+        NetworkInterface(
+            name=iface['name'],
+            mac_address=iface['mac_address'],
+            status=iface['status'],
+            driver=iface['driver']
+        )
+        for iface in interfaces
+    ]
+
+    # Apply filters
+    filters = {}
+    if args.status:
+        filters['status'] = args.status
+    if args.driver:
+        filters['driver'] = args.driver
+    if args.active_only:
+        filters['active_only'] = True
+
+    filtered = InterfaceFilter.apply_filters(net_interfaces, filters)
+
+    # Apply search if keyword provided
+    if args.search:
+        filtered = InterfaceFilter.search(filtered, args.search)
+
+    # Apply sorting
+    if args.sort_by:
+        filtered = InterfaceFilter.sort_by_field(
+            filtered, args.sort_by, reverse=args.sort_reverse
+        )
+
+    print(f"\nFound {len(filtered)} matching interface(s):\n")
+    print(InterfaceFilter.to_table(filtered))
+
+    return 0
+
+
 def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -293,6 +536,53 @@ Examples:
     # Rollback command
     subparsers.add_parser('rollback', help='Rollback all changes')
 
+    # Profile management
+    profile_parser = subparsers.add_parser('profile', help='Manage MAC profiles')
+    profile_subparsers = profile_parser.add_subparsers(dest='profile_action', required=True)
+    profile_subparsers.add_parser('list', help='List all profiles')
+    create_profile = profile_subparsers.add_parser('create', help='Create new profile')
+    create_profile.add_argument('--name', required=True, help='Profile name')
+    create_profile.add_argument('--description', help='Profile description')
+    delete_profile = profile_subparsers.add_parser('delete', help='Delete profile')
+    delete_profile.add_argument('--name', required=True, help='Profile name')
+    show_profile = profile_subparsers.add_parser('show', help='Show profile details')
+    show_profile.add_argument('--name', required=True, help='Profile name')
+
+    # MAC History
+    history_parser = subparsers.add_parser('mac-history', help='Manage MAC address history')
+    history_subparsers = history_parser.add_subparsers(dest='history_action', required=True)
+    history_subparsers.add_parser('list', help='List MAC history')
+    history_subparsers.add_parser('stats', help='Show history statistics')
+    clear_history = history_subparsers.add_parser('clear', help='Clear history')
+    clear_history.add_argument('--interface', help='Clear history for specific interface')
+
+    # Scheduler
+    scheduler_parser = subparsers.add_parser('schedule', help='Manage task scheduling')
+    scheduler_subparsers = scheduler_parser.add_subparsers(dest='scheduler_action', required=True)
+    scheduler_subparsers.add_parser('list', help='List scheduled tasks')
+    create_task = scheduler_subparsers.add_parser('create', help='Create scheduled task')
+    create_task.add_argument('--name', required=True, help='Task name')
+    create_task.add_argument('--interface', required=True, help='Target interface')
+    create_task.add_argument('--action', required=True, help='Action to perform')
+    create_task.add_argument('--frequency', required=True, help='Frequency (once, hourly, daily, weekly)')
+    create_task.add_argument('--description', help='Task description')
+    delete_task = scheduler_subparsers.add_parser('delete', help='Delete scheduled task')
+    delete_task.add_argument('--name', required=True, help='Task name')
+    enable_task = scheduler_subparsers.add_parser('enable', help='Enable scheduled task')
+    enable_task.add_argument('--name', required=True, help='Task name')
+    disable_task = scheduler_subparsers.add_parser('disable', help='Disable scheduled task')
+    disable_task.add_argument('--name', required=True, help='Task name')
+
+    # Interface filter/search
+    filter_parser = subparsers.add_parser('search', help='Search and filter interfaces')
+    filter_parser.add_argument('--search', help='Keyword to search for')
+    filter_parser.add_argument('--status', help='Filter by status (up/down)')
+    filter_parser.add_argument('--driver', help='Filter by driver')
+    filter_parser.add_argument('--active-only', action='store_true', help='Show only active interfaces')
+    filter_parser.add_argument('--sort-by', help='Sort by field (name, mac, status, ip)')
+    filter_parser.add_argument('--sort-reverse', action='store_true', help='Reverse sort order')
+
+    # Parse arguments
     args = parser.parse_args()
 
     # Setup logging
@@ -307,6 +597,10 @@ Examples:
         'generate': generate_mac,
         'history': show_history,
         'rollback': rollback,
+        'profile': manage_profiles,
+        'mac-history': manage_mac_history,
+        'schedule': manage_scheduler,
+        'search': filter_interfaces,
     }
 
     if not args.command:

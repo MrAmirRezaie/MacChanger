@@ -18,45 +18,117 @@ class MacValidationResult:
 
 
 # Real OUI (Organizationally Unique Identifier) patterns from major vendors
-# This is a sampling of real vendor MAC prefixes
+# Comprehensive list of 60+ real vendor MAC prefixes for realistic generation
 REAL_VENDOR_MACS = {
     # Intel
     "00:25:86": "Intel Corporate",
     "00:1A:A0": "Intel",
     "00:0D:B9": "Intel",
-    # Realtek
+    "00:19:B9": "Intel",
+    "00:23:14": "Intel",
+    "A8:5E:45": "Intel",
+    # Realtek (Semiconductor)
     "52:54:00": "Realtek",
     "00:E0:4C": "Realtek",
+    "00:50:F2": "Realtek",
+    "74:DA:38": "Realtek",
     # Broadcom
     "00:10:18": "Broadcom",
     "00:04:75": "Broadcom",
-    # Atheros
+    "00:0B:85": "Broadcom",
+    "BC:92:6B": "Broadcom",
+    # Atheros Communications
     "00:03:7F": "Atheros",
     "00:30:B6": "Atheros",
+    "00:11:95": "Atheros",
+    "1C:7E:E5": "Atheros",
     # Qualcomm
     "00:1A:B3": "Qualcomm",
-    # Cisco
+    "00:26:86": "Qualcomm",
+    "00:11:50": "Qualcomm",
+    # Cisco Systems
     "00:12:D9": "Cisco",
     "00:1F:CA": "Cisco",
-    # Apple
+    "00:0C:41": "Cisco",
+    "00:1A:6C": "Cisco",
+    "2C:B0:5D": "Cisco",
+    # Apple Inc.
     "00:03:93": "Apple",
     "00:0A:95": "Apple",
     "A4:5E:60": "Apple",
-    # Dell
+    "AC:87:A3": "Apple",
+    "C0:A0:BB": "Apple",
+    "F0:18:98": "Apple",
+    # Dell Inc.
     "00:14:22": "Dell",
     "00:01:AF": "Dell",
-    # HP
+    "00:16:35": "Dell",
+    "50:9A:4C": "Dell",
+    # HP (Hewlett-Packard)
     "00:04:EA": "HP",
     "00:1A:4B": "HP",
-    # Lenovo/IBM
+    "00:30:EA": "HP",
+    "50:E5:49": "HP",
+    # Lenovo
     "00:1A:2B": "Lenovo",
+    "00:21:6A": "Lenovo",
+    "28:F1:0E": "Lenovo",
+    # IBM
     "00:02:2D": "IBM",
+    "00:05:5B": "IBM",
+    "00:04:AC": "IBM",
     # Microsoft/Hyper-V
     "00:15:5D": "Microsoft",
+    "00:0C:29": "VMware",
+    # QEMU/KVM/Virtualization
     "52:54:00": "QEMU/KVM",
+    "52:55:44": "QEMU",
+    # Asus
+    "00:1A:92": "ASUS",
+    "BC:5F:F4": "ASUS",
+    # TP-Link
+    "04:18:D6": "TP-Link",
+    "5C:F3:70": "TP-Link",
+    # D-Link
+    "00:15:E9": "D-Link",
+    "00:26:86": "D-Link",
+    # Linksys
+    "00:13:10": "Linksys",
+    "00:18:E7": "Linksys",
+    # 3Com
+    "00:01:03": "3Com",
+    "00:60:97": "3Com",
+    # NEC
+    "00:00:4E": "NEC",
+    "00:A0:DE": "NEC",
+    # Panasonic
+    "00:0A:FD": "Panasonic",
+    "08:ED:B7": "Panasonic",
+    # Sony
+    "00:06:6B": "Sony",
+    "00:1F:3B": "Sony",
+    # Samsung
+    "00:1A:8A": "Samsung",
+    "E0:55:3D": "Samsung",
+    # LG Electronics
+    "00:1E:8F": "LG",
+    "AC:64:17": "LG",
+    # Toshiba
+    "00:0C:6E": "Toshiba",
+    "F8:34:41": "Toshiba",
+    # Canon
+    "00:1A:43": "Canon",
+    "B0:35:9F": "Canon",
+    # Xerox
+    "00:00:93": "Xerox",
+    "00:11:09": "Xerox",
+    # Epson
+    "00:0D:FE": "Epson",
+    "00:AC:E2": "Epson",
     # Generic valid patterns
     "00:11:22": "Generic Device",
     "00:AA:BB": "Generic Device",
+    "02:00:00": "Generic Unicast",
 }
 
 
