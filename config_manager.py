@@ -4,8 +4,9 @@ Configuration Manager - Manages profiles and settings for MAC address spoofing.
 
 import json
 import logging
+import re
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Callable, Dict, List, Optional, Any
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
 
@@ -19,6 +20,7 @@ class MacProfile:
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     modified_at: str = field(default_factory=lambda: datetime.now().isoformat())
     tags: List[str] = field(default_factory=list)
+    _save_callback: Optional[Callable[['MacProfile'], bool]] = field(default=None, repr=False, compare=False, init=False)
 
     def update_modified_time(self) -> None:
         """Update the modified timestamp."""
@@ -28,12 +30,16 @@ class MacProfile:
         """Add or update an interface MAC mapping."""
         self.interfaces[interface] = mac_address
         self.update_modified_time()
+        if self._save_callback:
+            self._save_callback(self)
 
     def remove_interface(self, interface: str) -> bool:
         """Remove an interface from the profile."""
         if interface in self.interfaces:
             del self.interfaces[interface]
             self.update_modified_time()
+            if self._save_callback:
+                self._save_callback(self)
             return True
         return False
 
@@ -43,7 +49,13 @@ class MacProfile:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert profile to dictionary."""
-        return asdict(self)
+        data = asdict(self)
+        data.pop("_save_callback", None)
+        return data
+
+    def set_save_callback(self, callback: Callable[['MacProfile'], bool]) -> None:
+        """Attach a save callback for automatic persistence."""
+        self._save_callback = callback
 
 
 class ConfigManager:
@@ -109,6 +121,7 @@ class ConfigManager:
                     with open(profile_file, 'r') as f:
                         profile_data = json.load(f)
                         profile = MacProfile(**profile_data)
+                        profile.set_save_callback(self._save_profile)
                         self.profiles[profile.name] = profile
                     self.logger.debug(f"Loaded profile: {profile.name}")
                 except Exception as e:
@@ -169,6 +182,7 @@ class ConfigManager:
             description=description,
             tags=tags or []
         )
+        profile.set_save_callback(self._save_profile)
 
         self.profiles[name] = profile
         self._save_profile(profile)
@@ -280,7 +294,7 @@ class ConfigManager:
                 interfaces=dict(source_profile.interfaces),
                 tags=list(source_profile.tags)
             )
-
+            new_profile.set_save_callback(self._save_profile)
             self.profiles[dest_name] = new_profile
             self._save_profile(new_profile)
             self.logger.info(f"Profile cloned: {source_name} -> {dest_name}")
@@ -294,11 +308,16 @@ class ConfigManager:
         keyword_lower = keyword.lower()
         results = []
 
+        def matches(text: str) -> bool:
+            if not text:
+                return False
+            return bool(re.search(rf"\b{re.escape(keyword_lower)}\b", text.lower()))
+
         for profile in self.profiles.values():
             if (
-                keyword_lower in profile.name.lower()
-                or keyword_lower in profile.description.lower()
-                or any(keyword_lower in tag.lower() for tag in profile.tags)
+                matches(profile.name)
+                or matches(profile.description)
+                or any(matches(tag) for tag in profile.tags)
             ):
                 results.append({
                     'name': profile.name,
@@ -349,6 +368,7 @@ class ConfigManager:
 
             profile_data['name'] = profile_name
             profile = MacProfile(**profile_data)
+            profile.set_save_callback(self._save_profile)
             self.profiles[profile_name] = profile
             self._save_profile(profile)
             self.logger.info(f"Profile imported: {profile_name}")

@@ -95,6 +95,43 @@ class TestMacValidator(unittest.TestCase):
             self.assertTrue(result.is_valid, f"Generated invalid MAC: {mac}")
             self.assertTrue(result.is_unicast, f"Generated multicast MAC: {mac}")
 
+    def test_generate_locally_administered_mac(self):
+        """Test locally administered MAC generation."""
+        mac = MacValidator.generate_locally_administered_mac()
+        self.assertTrue(MacValidator.is_valid_format(mac))
+        self.assertTrue(MacValidator.is_locally_administered(mac))
+
+    def test_generate_vendor_specific_mac(self):
+        """Test vendor-specific MAC generation."""
+        mac = MacValidator.generate_vendor_specific_mac('00:25:86')
+        self.assertTrue(mac.startswith('00:25:86'))
+        self.assertTrue(MacValidator.is_valid_format(mac))
+
+    def test_validate_for_interface_wireless(self):
+        """Test validation against wireless interface restrictions."""
+        mac = MacValidator.generate_vendor_specific_mac('00:25:86')
+        result = MacValidator.validate_for_interface(mac, interface_type='wireless')
+        self.assertFalse(result.is_valid)
+        self.assertIn('locally administered', result.message.lower())
+
+    @patch('mac_validator.urllib.request.urlopen')
+    def test_refresh_oui_database(self, mock_urlopen):
+        """Test refreshing the OUI vendor database."""
+        sample_data = 'MA-L,00-01-02,Test Vendor\n'
+        mock_response = mock_urlopen.return_value.__enter__.return_value
+        mock_response.read.return_value = sample_data.encode('utf-8')
+
+        result = MacValidator.refresh_oui_database(source_url='http://example.com/oui.csv')
+        self.assertTrue(result)
+        self.assertEqual(MacValidator.get_vendor('00:01:02:11:22:33'), 'Test Vendor')
+
+    def test_validate_for_interface_bridge(self):
+        """Test validation against bridge interface restrictions."""
+        mac = '01:00:5E:00:00:01'  # multicast address
+        result = MacValidator.validate_for_interface(mac, interface_type='bridge')
+        self.assertFalse(result.is_valid)
+        self.assertIn('multicast', result.message.lower())
+
 
 class TestTransactionManager(unittest.TestCase):
     """Test cases for transaction manager."""

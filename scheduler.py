@@ -49,8 +49,11 @@ class ScheduledTask:
 
     def is_due(self) -> bool:
         """Check if task is due to run."""
+        if self.frequency == ScheduleFrequency.ONCE:
+            return self.enabled and self.run_count == 0
+
         if self.next_run is None:
-            return self.enabled
+            return False
 
         next_run_time = datetime.fromisoformat(self.next_run)
         return datetime.now() >= next_run_time and self.enabled

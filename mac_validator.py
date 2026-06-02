@@ -2,7 +2,12 @@
 MAC Address Validator - Validates MAC addresses against real vendor patterns.
 """
 
+import json
+import random
 import re
+import urllib.request
+import urllib.error
+from pathlib import Path
 from typing import Optional, Tuple
 from dataclasses import dataclass
 
@@ -19,6 +24,9 @@ class MacValidationResult:
 
 # Real OUI (Organizationally Unique Identifier) patterns from major vendors
 # Comprehensive list of 60+ real vendor MAC prefixes for realistic generation
+OUI_CACHE_FILE = Path.home() / '.mac-spoofer' / 'oui_cache.json'
+OUI_SOURCE_URL = 'https://standards-oui.ieee.org/oui/oui.csv'
+
 REAL_VENDOR_MACS = {
     # Intel
     "00:25:86": "Intel Corporate",
@@ -143,16 +151,15 @@ class MacValidator:
     @staticmethod
     def normalize_mac(mac: str) -> str:
         """Normalize MAC address to standard format (XX:XX:XX:XX:XX:XX)."""
-        # Remove dots and dashes
-        mac = mac.replace(".", "").replace("-", "")
-        # Ensure uppercase
-        mac = mac.upper()
-        # Remove existing colons to handle mixed formats
-        mac = mac.replace(":", "")
+        # Remove dots, dashes, and colons
+        clean_mac = mac.replace(".", "").replace("-", "").replace(":", "").upper()
         # Add colons if we have 12 hex characters
-        if len(mac) == 12 and all(c in "0123456789ABCDEF" for c in mac):
-            mac = ":".join(mac[i : i + 2] for i in range(0, 12, 2))
-        return mac
+        if len(clean_mac) == 12 and all(c in "0123456789ABCDEF" for c in clean_mac):
+            return ":".join(clean_mac[i : i + 2] for i in range(0, 12, 2))
+        # Add colons for 3-octet vendor prefixes as well
+        if len(clean_mac) == 6 and all(c in "0123456789ABCDEF" for c in clean_mac):
+            return ":".join(clean_mac[i : i + 2] for i in range(0, 6, 2))
+        return clean_mac
 
     @staticmethod
     def is_valid_format(mac: str) -> bool:
@@ -189,6 +196,132 @@ class MacValidator:
 
         # Accept as generic valid if format is correct
         return "Unknown/Generic Vendor"
+
+    @staticmethod
+    def _normalize_prefix(prefix: str) -> str:
+        prefix = MacValidator.normalize_mac(prefix)
+        return ":".join(prefix.split(":")[:3])
+
+    @staticmethod
+    def _generate_mac_from_prefix(prefix: str, locally_administered: bool = False) -> str:
+        prefix = MacValidator._normalize_prefix(prefix)
+        host = ":".join(f"{random.randint(0, 255):02X}" for _ in range(3))
+        mac = f"{prefix}:{host}"
+        if locally_administered:
+            octets = mac.split(":")
+            first = int(octets[0], 16)
+            first = (first | 0x02) & 0xFE
+            octets[0] = f"{first:02X}"
+            mac = ":".join(octets)
+        return mac
+
+    @staticmethod
+    def generate_locally_administered_mac(vendor_prefix: Optional[str] = None) -> str:
+        """Generate a locally administered MAC address."""
+        if vendor_prefix:
+            prefix = MacValidator._normalize_prefix(vendor_prefix)
+        else:
+            prefix = random.choice(list(REAL_VENDOR_MACS.keys()))
+        return MacValidator._generate_mac_from_prefix(prefix, locally_administered=True)
+
+    @staticmethod
+    def generate_vendor_specific_mac(vendor_prefix: Optional[str] = None) -> str:
+        """Generate a MAC address using a specific vendor prefix."""
+        if vendor_prefix:
+            prefix = MacValidator._normalize_prefix(vendor_prefix)
+        else:
+            prefix = random.choice(list(REAL_VENDOR_MACS.keys()))
+        return MacValidator._generate_mac_from_prefix(prefix, locally_administered=False)
+
+    @staticmethod
+    def load_cached_oui_database() -> None:
+        """Load a cached OUI vendor database from disk."""
+        try:
+            if OUI_CACHE_FILE.exists():
+                with open(OUI_CACHE_FILE, 'r', encoding='utf-8') as f:
+                    cached = json.load(f)
+                for key, value in cached.items():
+                    REAL_VENDOR_MACS[key.upper()] = value
+        except Exception:
+            pass
+
+    @staticmethod
+    def refresh_oui_database(source_url: Optional[str] = None) -> bool:
+        """Refresh the vendor OUI database from an online source."""
+        source_url = source_url or OUI_SOURCE_URL
+        try:
+            OUI_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with urllib.request.urlopen(source_url, timeout=15) as response:
+                data = response.read().decode('utf-8', errors='ignore')
+
+            updated = {}
+            for line in data.splitlines():
+                parts = [p.strip() for p in line.split(',')]
+                if len(parts) < 3:
+                    continue
+                prefix = parts[1].replace('-', ':').upper()
+                if len(prefix) == 8:
+                    updated[prefix] = parts[2]
+
+            if updated:
+                with open(OUI_CACHE_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(updated, f, indent=2)
+                REAL_VENDOR_MACS.update(updated)
+                return True
+        except urllib.error.URLError:
+            return False
+        except Exception:
+            return False
+
+    @staticmethod
+    def validate_for_interface(
+        mac: str,
+        interface_type: Optional[str] = None,
+        driver: Optional[str] = None,
+        interface_name: Optional[str] = None,
+        must_be_unicast: bool = True,
+        must_have_vendor: bool = False
+    ) -> MacValidationResult:
+        """Validate a MAC address against interface-specific restrictions."""
+        result = MacValidator.validate(mac, must_be_unicast=must_be_unicast, must_have_vendor=must_have_vendor)
+        if not result.is_valid:
+            return result
+
+        if interface_type:
+            interface_type_lower = interface_type.lower()
+            if interface_type_lower == 'wireless' and not MacValidator.is_locally_administered(mac):
+                return MacValidationResult(
+                    is_valid=False,
+                    message=f"MAC {mac} must be locally administered for wireless interfaces",
+                    vendor=result.vendor,
+                    is_unicast=result.is_unicast,
+                    is_locally_administered=result.is_locally_administered,
+                )
+            if interface_type_lower in ('bridge', 'virtual') and not MacValidator.is_unicast(mac):
+                return MacValidationResult(
+                    is_valid=False,
+                    message=f"MAC {mac} must be unicast for {interface_type} interfaces",
+                    vendor=result.vendor,
+                    is_unicast=False,
+                    is_locally_administered=result.is_locally_administered,
+                )
+
+        if driver:
+            driver_lower = driver.lower()
+            if 'veth' in driver_lower or 'vmnet' in driver_lower:
+                # Virtual bridge drivers generally accept locally administered MACs.
+                pass
+
+        if interface_name and interface_name.startswith('lo'):
+            return MacValidationResult(
+                is_valid=False,
+                message=f"Interface {interface_name} is loopback and cannot be spoofed",
+                vendor=result.vendor,
+                is_unicast=result.is_unicast,
+                is_locally_administered=result.is_locally_administered,
+            )
+
+        return result
 
     @staticmethod
     def validate(
@@ -312,6 +445,12 @@ def test_validator():
         result = MacValidator.validate(mac)
         print(f"Generated: {mac}")
         print(f"  Vendor: {result.vendor}, Unicast: {result.is_unicast}")
+
+
+try:
+    MacValidator.load_cached_oui_database()
+except Exception:
+    pass
 
 
 if __name__ == "__main__":

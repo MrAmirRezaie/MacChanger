@@ -38,6 +38,9 @@ A professional-grade, cross-platform MAC address spoofing tool designed for netw
 
 - **Cross-platform support**: Windows, Linux, macOS
 - **Real vendor OUI pattern matching**: 70+ vendor MACs for realistic randomization
+- **Locally administered MAC generation** and vendor-specific OUI-based MAC generation
+- **Online OUI refresh** to keep vendor prefix data up to date
+- **Interface-aware MAC validation** for wireless, bridge, virtual, and loopback restrictions
 - **RFC 5342-compliant MAC validation** and realistic MAC generation
 - **Transaction-based changes** with automatic rollback on errors  
 - **Pre/post verification** of applied changes with detailed reporting
@@ -211,6 +214,12 @@ spoofer.spoof_mac_address(interfaces[0].name, new_mac)
 ```
 
 Refer to the module docstrings for full API signatures: `mac_validator.py`, `transaction_manager.py`, `platform_handlers.py`, `mac_spoofer.py`.
+
+The validator module now includes:
+- `generate_locally_administered_mac()` for LAA random MACs
+- `generate_vendor_specific_mac()` for vendor OUI-based MACs
+- `refresh_oui_database()` to update OUI mappings from an online source
+- `validate_for_interface()` for interface-specific validation constraints
 
 ---
 

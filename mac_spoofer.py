@@ -244,8 +244,10 @@ class MacAddressSpoofer:
                         f"reverted, {rollback_result['failed_count']} failed"
                     )
                     self.logger.warning(summary)
-                    # Mark remaining as cancelled
-                    for remaining_interface in list(results.keys())[results[interface] != (success, message):]:
+                    # Mark as cancelled any interfaces not yet processed
+                    remaining_interfaces = list(mappings.keys())
+                    current_index = remaining_interfaces.index(interface)
+                    for remaining_interface in remaining_interfaces[current_index + 1:]:
                         results[remaining_interface] = (False, "Cancelled due to partial failure")
                     break
 
